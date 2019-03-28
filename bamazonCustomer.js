@@ -52,10 +52,10 @@ function main() {
                 }
             ]).then(function (stepTwo) {
                 if (stepTwo.quantity === "q") {
-                    console.log("Goodbye");
+                    console.log("\nGoodbye");
                     connection.end();
                 } else {
-                    makePurchase(stepOne.item, stepTwo.quantity);
+                    makePurchase(parseInt(stepOne.item), parseInt(stepTwo.quantity));
                 }
             })
         }
@@ -69,11 +69,11 @@ function display(func) {
             if (err) throw err;
 
             var table = new Table({
-                head: ["ID", "Product", "Department", "Price"]
+                head: ["ID", "Product", "Department", "Price", "Stock"]
             });
 
             for (var i = 0; i < res.length; i++) {
-                table.push([res[i].id, res[i].product, res[i].department, res[i].price])
+                table.push([res[i].id, res[i].product, res[i].department, res[i].price, res[i].quantity]);
             }
             console.log(table.toString());
             func();
@@ -82,5 +82,42 @@ function display(func) {
 }
 
 function makePurchase(item, quantity) {
-    console.log(item, quantity);
+    connection.query(
+        "SELECT * FROM products",
+        function (err, res) {
+            if (err) throw err;
+
+            var product;
+            for (var i = 0; i < res.length; i++) {
+                if (item === res[i].id) {
+                    product = res[i];
+                }
+            }
+
+            if (!product) {
+                console.log("That item is not in stock.");
+                display(main);
+            } else if (product.quantity >= quantity) {
+                connection.query(
+                    "UPDATE products set ? WHERE ?",
+                    [
+                        {
+                            quantity: product.quantity - quantity
+                        },
+                        {
+                            id: item
+                        }
+                    ],
+                    function (err, res) {
+                        if (err) throw err;
+                        console.log("\nYour purchase total was: " + quantity * product.price + "\n")
+                        display(main);
+                    }
+                )
+            } else if (product.quantity < quantity) {
+                console.log("\nInsufficient quantity!\n");
+                display(main);
+            }
+        }
+    )
 }
